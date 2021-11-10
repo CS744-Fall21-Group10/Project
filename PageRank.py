@@ -6,11 +6,11 @@ import sys
 
 if __name__ == "__main__":
     #For accessing files on HDFS
-    hdfsPrefix="hdfs://10.10.1.1:9000/"
+    hdfsPrefix = "hdfs://10.10.1.1:9000/"
     # Input file is first argument
-    in_file = hdfsPrefix+sys.argv[1]
+    in_file = hdfsPrefix + sys.argv[1]
     # Output directory is second argument
-    out_file = hdfsPrefix+sys.argv[2]
+    out_file = hdfsPrefix + sys.argv[2]
 
     # Load spark session and run locally
     spark = SparkSession \
@@ -28,6 +28,7 @@ if __name__ == "__main__":
         StructField("from", StringType(), False),
         StructField("to", StringType(), False)
         ])
+
     # Read tab-separated edge list
     adj = spark.read.option("comment", "#") \
         .csv(in_file, sep='\t', schema=adj_schema)
@@ -54,14 +55,19 @@ if __name__ == "__main__":
     for i in range(N):
         # Find rank of each initial vertex
         df = adj.join(rank, on="from")
+        
         # Divide by outdegree
         df = df.withColumn("contrib", df["rank"] / df["outdeg"])
+        
         # Sum all contributions to final vertex
         rank = df.groupBy("to").agg(sum("contrib").alias("contribs"))
+        
         # Include 15% random restart
         rank = rank.withColumn("rank", 0.15 + 0.85 * rank["contribs"])
+        
         # Rename final vertex to initial vertex as sum was over final
         rank = rank.withColumnRenamed("to", "from")
+        
         #Add proper ranks for in-degree 0 nodes
         rank = rank.join(default_rank, on="from", how="outer")
         rank = rank.withColumn("rank", coalesce("rank", "default_rank"))
