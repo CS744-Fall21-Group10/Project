@@ -1,7 +1,3 @@
-*.zip
 *.ps
 *.dot
 /__pycache__
-/marius
-/OSDI21_AE
-/OSDI21_AE-master
