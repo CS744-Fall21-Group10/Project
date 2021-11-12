@@ -3,6 +3,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 from pyspark.sql.functions import lit, sum, coalesce, lower, col
 import sys
+from datetime import datetime
 
 if __name__ == "__main__":
     #For accessing files on HDFS
@@ -52,6 +53,9 @@ if __name__ == "__main__":
     
     N = 10
 
+    print("Beginning PageRank...")
+    startTime = dateTime.now()
+
     for i in range(N):
         # Find rank of each initial vertex
         df = adj.join(rank, on="from")
@@ -72,8 +76,11 @@ if __name__ == "__main__":
         rank = rank.join(default_rank, on="from", how="outer")
         rank = rank.withColumn("rank", coalesce("rank", "default_rank"))
 
+    print("PageRank Complete, total time:", getTimeFromStart(startTime))
     # Format final output as (node,rank) pairs
     rank = rank.select("from", "rank") \
         .withColumnRenamed("from", "node") \
         .write.csv(out_file, header="True")
 
+def getTimeFromStart(startTime):
+    return (datetime.now() - startTime).totalSeconds()
