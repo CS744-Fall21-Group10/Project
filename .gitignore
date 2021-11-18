@@ -1,4 +1,5 @@
 *.ps
 *.dot
 *.txt
+*.tar.gz
 /__pycache__

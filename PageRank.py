@@ -5,6 +5,9 @@ from pyspark.sql.functions import lit, sum, coalesce, lower, col
 import sys
 from datetime import datetime
 
+def getTimeFromStart(startTime):
+    return (datetime.now() - startTime).total_seconds()
+
 if __name__ == "__main__":
     #For accessing files on HDFS
     hdfsPrefix = "hdfs://10.10.1.1:9000/"
@@ -17,11 +20,11 @@ if __name__ == "__main__":
     spark = SparkSession \
         .builder \
         .appName("PageRank") \
-        .config("spark.driver.memory", "30G") \
-        .config("spark.executor.memory", "30G") \
+        .config("spark.driver.memory", "12G") \
+        .config("spark.executor.memory", "12G") \
         .config("spark.driver.cores",1) \
         .config("spark.task.cpus",1) \
-        .master("spark://c220g1-030827vm-1.wisc.cloudlab.us:7077") \
+        .master("spark://c220g5-111226vm-1.wisc.cloudlab.us:7077") \
         .getOrCreate()
 
     # Schema for edge list pairs
@@ -54,7 +57,7 @@ if __name__ == "__main__":
     N = 10
 
     print("Beginning PageRank...")
-    startTime = dateTime.now()
+    startTime = datetime.now()
 
     for i in range(N):
         # Find rank of each initial vertex
@@ -82,5 +85,3 @@ if __name__ == "__main__":
         .withColumnRenamed("from", "node") \
         .write.csv(out_file, header="True")
 
-def getTimeFromStart(startTime):
-    return (datetime.now() - startTime).totalSeconds()
