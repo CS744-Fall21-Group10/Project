@@ -76,12 +76,12 @@ if __name__ == "__main__":
             getTimeFromStart(startTime))
     #add partitions to adjacency and partition by that column. 
     #should be partition count from above
-    #parts_schema = StructType([
-    #    StructField("partition", IntegerType(), False)])
-    parts = [str(i) for i in zip(parts)] #int to str b/c reasons
-    #partsDF = spark.createDataFrame(parts, parts_schema)
+    parts_schema = StructType([
+        StructField("partition", IntegerType(), False)])
+    parts = [list(i) for i in zip(parts)] #transpose
+    partsDF = spark.createDataFrame(parts, parts_schema)
     #adj = adj.union(partsDF)
-    adj = adj.withColumn("partition", split(lit(','.join(parts)),","))
+    adj = adj.withColumn("partition", partsDF["partition"])
     adj = adj.repartition(numParts, "partition")
 
     print("Beginning PageRank...")
