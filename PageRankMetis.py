@@ -1,7 +1,7 @@
 """PageRank.py"""
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, Window
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType
-from pyspark.sql.functions import lit, sum, coalesce, lower, col, split
+from pyspark.sql.functions import lit, sum, coalesce, lower, col, split, row_number, monotonically_increasing_id, UserDefinedFunction
 import sys
 from datetime import datetime
 import networkx as nx
@@ -44,7 +44,6 @@ if __name__ == "__main__":
             .withColumn("to", lower(col("to")))
 
     #dataframe? networkX needs adjacency list in the list of tuples form
-    #TODO get adj to format that networkX can consume.
     print("Beginning adding adjacencies...")
     startTime = datetime.now()
     G = nx.Graph()
@@ -74,14 +73,11 @@ if __name__ == "__main__":
     (edgecuts, parts) = metis.part_graph(G, numParts)
     print("Partitioning complete:", \
             getTimeFromStart(startTime))
+    
     #add partitions to adjacency and partition by that column. 
-    #should be partition count from above
-    parts_schema = StructType([
-        StructField("partition", IntegerType(), False)])
-    parts = [list(i) for i in zip(parts)] #transpose
-    partsDF = spark.createDataFrame(parts, parts_schema)
-    #adj = adj.union(partsDF)
-    adj = adj.withColumn("partition", partsDF["partition"])
+
+    partition_udf = UserDefinedFunction(lambda i: parts[int(i)], IntegerType())
+    adj = adj.withColumn("partition", partition_udf("from"))
     adj = adj.repartition(numParts, "partition")
 
     print("Beginning PageRank...")
