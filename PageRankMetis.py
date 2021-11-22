@@ -76,7 +76,7 @@ if __name__ == "__main__":
     
     #add partitions to adjacency and partition by that column. 
 
-    partition_udf = UserDefinedFunction(lambda i: parts[int(i)], IntegerType())
+    partition_udf = UserDefinedFunction(lambda i: parts[int(i)-1], IntegerType())
     adj = adj.withColumn("partition", partition_udf("from"))
     adj = adj.repartition(numParts, "partition")
 
