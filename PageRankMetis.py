@@ -75,10 +75,14 @@ if __name__ == "__main__":
             getTimeFromStart(startTime))
     
     #add partitions to adjacency and partition by that column. 
-
+    print("Beginning Repartitioning...")
+    startTime = datetime.now()
     partition_udf = UserDefinedFunction(lambda i: parts[int(i)-1], IntegerType())
     adj = adj.withColumn("partition", partition_udf("from"))
     adj = adj.repartition(numParts, "partition")
+    print("Repartitioning Complete:",\
+            getTimeFromStart(startTime))
+
 
     print("Beginning PageRank...")
     startTime = datetime.now()
