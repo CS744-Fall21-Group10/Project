@@ -1,10 +1,14 @@
 """PageRank.py"""
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, Window
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType
-from pyspark.sql.functions import lit, sum, coalesce, lower, col
+from pyspark.sql.functions import lit, sum, coalesce, lower, col, split, row_number, monotonically_increasing_id, UserDefinedFunction
 import sys
 from datetime import datetime
+import networkx as nx
+import metis
 
+def getTimeFromStart(startTime):
+    return (datetime.now() - startTime).total_seconds()
 
 if __name__ == "__main__":
     #For accessing files on HDFS
@@ -18,11 +22,11 @@ if __name__ == "__main__":
     spark = SparkSession \
         .builder \
         .appName("PageRank") \
-        .config("spark.driver.memory", "30G") \
-        .config("spark.executor.memory", "30G") \
+        .config("spark.driver.memory", "12G") \
+        .config("spark.executor.memory", "12G") \
         .config("spark.driver.cores",1) \
         .config("spark.task.cpus",1) \
-        .master("spark://c220g1-030827vm-1.wisc.cloudlab.us:7077") \
+        .master("spark://c220g5-111226vm-1.wisc.cloudlab.us:7077") \
         .getOrCreate()
 
     # Schema for edge list pairs
@@ -30,7 +34,7 @@ if __name__ == "__main__":
         StructField("from", StringType(), False),
         StructField("to", StringType(), False)
         ])
-
+    
     # Read tab-separated edge list
     adj = spark.read.option("comment", "#") \
         .csv(in_file, sep='\t', schema=adj_schema)
@@ -38,6 +42,16 @@ if __name__ == "__main__":
     #lower casing
     adj = adj.withColumn("from", lower(col("from"))) \
             .withColumn("to", lower(col("to")))
+
+    #dataframe? networkX needs adjacency list in the list of tuples form
+    print("Beginning adding adjacencies...")
+    startTime = datetime.now()
+    G = nx.Graph()
+    adjRdd = adj.rdd
+    tmp = adjRdd.map(tuple)
+    G.add_edges_from(tmp.collect())
+    print("Adding adjacencies complete, time taken:",\
+            getTimeFromStart(startTime))
 
     # Get outdegrees
     outdeg = adj.groupBy("from").count() \
@@ -53,28 +67,27 @@ if __name__ == "__main__":
         .withColumn("default_rank", lit(0.15))
     
     #partitioning
-    #TODO add dynamic prog partitioning
-    print("Beginning adding adjacencies...")
-    startTime = dateTime.now()
-    G = nx.Graph()
-    G.add_edges_from(adj)
-    print("Adding adjacencies complete, time taken:",\
-            getTimeFromStart(startTime))
-
+    numParts = 200
     print("Beginning partitioning...")
-    startTime = dateTime.now()
-    #ADD PARTITIONING HERE, output array would be nice
+    startTime = datetime.now()
+    #(edgecuts, parts) = metis.part_graph(G, numParts)
+    #TODO ADD DYNAMIC PROG PARTITIONER TO REPLACE ABOVE LINE
     print("Partitioning complete:", \
             getTimeFromStart(startTime))
-    #Add partitions somehow. would be nice if we could do withColumn and partitionBy 
-    #adj = adj.withColumn("partition", parts)
-    #adj.partitionBy("partition")
+    
+    #add partitions to adjacency and partition by that column. 
+    print("Beginning Repartitioning...")
+    startTime = datetime.now()
+    partition_udf = UserDefinedFunction(lambda i: parts[int(i)-1], IntegerType())
+    adj = adj.withColumn("partition", partition_udf("from"))
+    adj = adj.repartition(numParts, "partition")
+    print("Repartitioning Complete:",\
+            getTimeFromStart(startTime))
 
-
-    N = 10
 
     print("Beginning PageRank...")
-    startTime = dateTime.now()
+    startTime = datetime.now()
+    N = 10
     for i in range(N):
         # Find rank of each initial vertex
         df = adj.join(rank, on="from")
@@ -101,5 +114,3 @@ if __name__ == "__main__":
         .withColumnRenamed("from", "node") \
         .write.csv(out_file, header="True")
 
-def getTimeFromStart(startTime):
-    return (datetime.now() - startTime).totalSeconds()
